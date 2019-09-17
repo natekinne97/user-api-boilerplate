@@ -10,6 +10,7 @@ const { NODE_ENV } = require('./config')
 const app = express()
 // endpoints
 const authRouter = require('./auth/auth-router');
+const resRouter = require('./reset-password/reset-router');
 
 // logger
 app.use(morgan((NODE_ENV === 'production') ? 'tiny' : 'common', {
@@ -21,6 +22,7 @@ app.use(cors())
 app.use(helmet())
 // endpoints
 app.use('/api/auth', authRouter);
+app.use('/api/reset', resRouter);
 
 // catch all error handler
 app.use(function errorHandler(error, req, res, next) {

@@ -1,16 +1,13 @@
 
-
 const resetServices = {
     // check user from db
     getUsernameWithEmail(db, email) {
-        // insert your db here
         return db('users')
             .where({ email })
             .first()
     },
     // check user from db
     getUserWithUserName(db, user_name) {
-        // insert your db here
         return db('users')
             .where({ user_name })
             .first()
@@ -27,7 +24,7 @@ const resetServices = {
         return db.from('users')
             .where('id', id)
             .update(updateUser)
-            .returning('resetpasswordtoken', 'resetpasswordexpires')
+            .returning('*')
             .then(rows => {
                 return rows[0];
             });

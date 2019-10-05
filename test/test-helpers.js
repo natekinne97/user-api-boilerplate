@@ -1,89 +1,80 @@
-const bcrypt = require('bcryptjs')
+const jwt = require('jsonwebtoken')
 
-function makeUsersArray() {
+// make array for seeding the db
+function makeCampsitesArray() {
     return [
         {
             id: 1,
-            user_name: 'test-user-1',
-            full_name: 'Test user 1',
-            nickname: 'TU1',
-            password: 'password',
-            date_created: new Date('2029-01-22T16:28:32.615Z'),
+            img: 'https://i.imgur.com/ELRFWHvb.jpg',
+            name: 'Bayou place',
+            description: 'A beautiful bayou great for fishing',
+            park: 'Okefenokee Swamp National Park',
+            city: 'Williamsburg',
+            state: 'Georgia'
         },
         {
             id: 2,
-            user_name: 'test-user-2',
-            full_name: 'Test user 2',
-            nickname: 'TU2',
-            password: 'password',
-            date_created: new Date('2029-01-22T16:28:32.615Z'),
-        },
-        {
-            id: 3,
-            user_name: 'test-user-3',
-            full_name: 'Test user 3',
-            nickname: 'TU3',
-            password: 'password',
-            date_created: new Date('2029-01-22T16:28:32.615Z'),
-        },
-        {
-            id: 4,
-            user_name: 'test-user-4',
-            full_name: 'Test user 4',
-            nickname: 'TU4',
-            password: 'password',
-            date_created: new Date('2029-01-22T16:28:32.615Z'),
-        },
+            img: 'https://i.imgur.com/JGdoWLe.jpg',
+            name: 'Mountain Place',
+            description: 'Perched atop a mountain meadow this site offers great birdwatching',
+            park: 'Black Mountain',
+            city: 'Boise',
+            state: 'Idaho'
+        }
     ]
 }
 
 
-function makeArticlesFixtures() {
-    const testUsers = makeUsersArray()
-    const testArticles = makeArticlesArray(testUsers)
-    const testComments = makeCommentsArray(testUsers, testArticles)
-    return { testUsers, testArticles, testComments }
+function makeReviewArray() {
+    // (text, rating, campsite_id, user_id)
+    return [
+        {
+            id: 1,
+            text: 'This place is great. definitly going again',
+            rating: 5,
+            campsite_id: 1,
+            user_id: 1
+
+        },
+        {
+            id: 2,
+            text: 'A great place to camp',
+            rating: 5,
+            campsite_id: 2,
+            user_id: 2
+        }
+    ]
 }
 
-function cleanTables(db) {
-    return db.transaction(trx =>
-        trx.raw(
-            `TRUNCATE
-        blogful_articles,
-        blogful_users,
-        blogful_comments
-      `
-        )
-            .then(() =>
-                Promise.all([
-                    trx.raw(`ALTER SEQUENCE blogful_articles_id_seq minvalue 0 START WITH 1`),
-                    trx.raw(`ALTER SEQUENCE blogful_users_id_seq minvalue 0 START WITH 1`),
-                    trx.raw(`ALTER SEQUENCE blogful_comments_id_seq minvalue 0 START WITH 1`),
-                    trx.raw(`SELECT setval('blogful_articles_id_seq', 0)`),
-                    trx.raw(`SELECT setval('blogful_users_id_seq', 0)`),
-                    trx.raw(`SELECT setval('blogful_comments_id_seq', 0)`),
-                ])
-            )
-    )
+// finds the user with the token given
+function getUserWithTokens(db, resetpasswordtoken) {
+    return db('users')
+        .where({
+            resetpasswordtoken: resetpasswordtoken,
+        })
+        .first()
 }
 
-function seedUsers(db, users) {
-    const preppedUsers = users.map(user => ({
-        ...user,
-        password: bcrypt.hashSync(user.password, 1)
-    }))
-    return db.into('blogful_users').insert(preppedUsers)
-        .then(() =>
-            // update the auto sequence to stay in sync
-            db.raw(
-                `SELECT setval('blogful_users_id_seq', ?)`,
-                [users[users.length - 1].id],
-            )
-        )
+// user array is being used to retrieve the author for comments
+function makeUserArray() {
+    return [
+        {
+            id: 1,
+            user_name: 'dunder',
+            full_name: 'dunder miffilin',
+            email: 'blah@gmail.com',
+            password: '$2a$12$3MsnYDHU0g.FBXkHU5qNiOVM/KT.2LXho7D6TZwbOKLFJBmSbHFbG'
+        },
+        {
+            id: 2,
+            user_name: 'person',
+            full_name: 'human person',
+            email: 'person@gmail.com',
+            password: '$2a$12$nt8./ljTB2nPzcncvT51OOTl2AvWkDwQx0Fc70d8dB.VwKx.lKJRe'
+        },
+    ];//end of return
 }
-
-
-
+// make auth token for test
 function makeAuthHeader(user, secret = process.env.JWT_SECRET) {
     const token = jwt.sign({ user_id: user.id }, secret, {
         subject: user.user_name,
@@ -92,13 +83,64 @@ function makeAuthHeader(user, secret = process.env.JWT_SECRET) {
     return `Bearer ${token}`
 }
 
-module.exports = {
-    makeUsersArray,
-   
-    makeArticlesFixtures,
-    cleanTables,
-   
-    makeAuthHeader,
-    seedUsers,
+function seedCampsites(db, data) {
+    return db.insert(data)
+        .into('campsites')
+        .returning('*')
+        .then(rows => {
+            return rows[0];
+        })
 }
 
+function seedReviews(db, data) {
+    return db.insert(data)
+        .into('reviews')
+        .returning('*')
+        .then(rows => {
+            return rows[0];
+        })
+}
+
+function seedReviews2(db, users, reviews) {
+    return db.transaction(async trx => {
+        await seedUsers(trx, users);
+        await trx.into('reviews')
+            .insert(reviews)
+            .returning('*')
+            .then(rows => {
+                console.log(rows, 'rows being returned')
+                return rows[0];
+            });
+
+        console.log('seeding reviews');
+    })
+}
+
+function seedUsers(db, data) {
+    return db.insert(data)
+        .into('users')
+        .returning('*')
+        .then(rows => {
+            return rows[0];
+        })
+}
+
+function cleanTables(db) {
+    return db.raw(
+        'TRUNCATE reviews,  campsites, users  RESTART IDENTITY CASCADE'
+    )
+}
+
+
+module.exports = {
+    makeCampsitesArray,
+    makeReviewArray,
+    makeUserArray,
+    seedCampsites,
+    seedReviews,
+    seedReviews2,
+    seedUsers,
+    cleanTables,
+    makeAuthHeader,
+    getUserWithTokens,
+}

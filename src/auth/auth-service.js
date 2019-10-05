@@ -3,31 +3,31 @@ const jwt = require('jsonwebtoken')
 const config = require('../config')
 
 const AuthService = {
-    // check user from db
+    // get user from username
     getUserWithUserName(db, user_name) {
-        // insert your db here
         return db('users')
             .where({ user_name })
             .first()
     },
-    // compare the passwords
+    // compare hashed passwords
     comparePasswords(password, hash) {
         return bcrypt.compare(password, hash)
     },
-    // create a json token
+    // create a jwt
     createJwt(subject, payload) {
         return jwt.sign(payload, config.JWT_SECRET, {
             subject,
+            expiresIn: config.JWT_EXPIRY,
             algorithm: 'HS256',
         })
     },
-    // verify token
+    // verify the token
     verifyJwt(token) {
         return jwt.verify(token, config.JWT_SECRET, {
             algorithms: ['HS256'],
         })
     },
-    // parse base token
+    // parse the token
     parseBasicToken(token) {
         return Buffer
             .from(token, 'base64')
